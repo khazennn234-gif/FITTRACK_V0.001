@@ -1,0 +1,99 @@
+// Prisma schema for FitTrack REST API Backend
+// Supports SQLite (Zero-config local dev) or PostgreSQL (Supabase, Neon, Railway)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String    // bcrypt hashed
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  profile     Profile?
+  settings    Settings?
+  sessions    WorkoutSession[]
+
+  @@map("users")
+}
+
+model Profile {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name           String
+  avatarUrl      String?
+  role           String    @default("ATHLETE")      // ATHLETE, PRO TRAINER
+  tier           String    @default("Tier I Athlete")
+  height         Float?    // cm
+  weight         Float?    // kg
+  age            Int?
+  fitnessGoal    String    @default("strength")     // strength | cardio | mobility
+  fitnessLevel   String    @default("beginner")     // beginner | intermediate | advanced
+  dailyRepTarget Int       @default(30)
+  joinedDate     DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("profiles")
+}
+
+model Settings {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  soundVolume     Int       @default(80)          // 0-100
+  soundFeedback   Boolean   @default(true)
+  gpuAcceleration Boolean   @default(true)
+  cameraMirror    Boolean   @default(true)
+  poseStrictness  String    @default("normal")    // loose | normal | strict
+  difficulty      String    @default("normal")    // easy | normal | strict
+  darkMode        Boolean   @default(true)
+  updatedAt       DateTime  @updatedAt
+
+  @@map("settings")
+}
+
+model WorkoutSession {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date         DateTime      @default(now())
+  exercise     String                              // squat | pushup | jumping-jack | ...
+  exerciseIcon String
+  reps         Int
+  targetReps   Int
+  duration     Int                                 // seconds
+  formScore    Float                               // 0-100
+  goodReps     Int
+  badReps      Int
+  calories     Float
+  statusBadge  String?                             // SEMPURNA | PERLU PERBAIKAN | ...
+
+  feedback     RepFeedback[]
+
+  @@index([userId, date])
+  @@index([userId, exercise])
+  @@map("workout_sessions")
+}
+
+model RepFeedback {
+  id        String         @id @default(cuid())
+  sessionId String
+  session   WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  rep       Int
+  message   String
+  type      String         // good | bad
+
+  @@map("rep_feedback")
+}
